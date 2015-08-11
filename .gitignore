@@ -48,3 +48,7 @@ distribute-*.tar.gz
 
 # Mac OSX
 .DS_Store
+
+# Development files
+dev/profiles/*
+dev/.ipynb-checkpoints/*
