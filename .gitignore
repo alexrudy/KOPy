@@ -51,4 +51,4 @@ distribute-*.tar.gz
 
 # Development files
 dev/profiles/*
-dev/.ipynb-checkpoints/*
+dev/.ipynb_checkpoints/*
