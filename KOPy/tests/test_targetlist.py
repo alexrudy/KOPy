@@ -31,6 +31,10 @@ def test_index_starlist(targetlist):
     assert len(s) == 2
     assert isinstance(s, TargetList)
     
+    s = targetlist[3:1:-1]
+    assert len(s) == 2
+    assert isinstance(s, TargetList)
+    
     t = targetlist[1]
     assert isinstance(t, Target)
     

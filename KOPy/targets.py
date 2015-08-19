@@ -114,6 +114,11 @@ class TargetList(collections.MutableSequence, list):
         """Ensure type consistency!"""
         return list.__setitem__(self, key, self._type_check(value))
     
+    if six.PY2:
+        def __getslice__(self, start, end):
+            """Override the slice operator in python2."""
+            return self.__getitem__(slice(start, end))
+    
     def __getitem__(self, key):
         """Ensure that we always get back a TargetList"""
         
