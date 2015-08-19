@@ -1,0 +1,92 @@
+ UT Start  UT End      openWindowDuration             nextClosureDuration
+ 
+ lazer_zenith      0.00000  90.00000
+ 05:28:00  08:36:06    open(min:sec) 0188:06          Closure(sec)       6
+ 08:36:12  11:50:30    open(min:sec) 0194:18          Closure(sec)       4
+ 11:50:34  12:00:12    open(min:sec) 0009:38          Closure(sec)       7
+ 12:00:19  15:27:00    open(min:sec) 0206:41
+
+eng341          14 37  2.622 -05 13 20.29 2000.0 vmag=10.19 b-v=0.48 lgs=1
+ 05:28:00  07:22:44    open(min:sec) 0114:44          Closure(sec)       6
+ 07:22:50  09:37:31    open(min:sec) 0134:41          Closure(sec)       9
+
+eng343          14 39 27.572 +15 23 51.40 2000.0 vmag=10.18 b-v=0.61 lgs=1
+ 05:28:00  10:22:17    open(min:sec) 0294:17
+
+eng342          14 37  3.535 +34 52  8.94 2000.0 vmag=10.13 b-v=0.63 lgs=1
+ 05:28:00  10:55:04    open(min:sec) 0327:04
+
+eng382          16 38  5.585 +15 25 22.12 2000.0 vmag=10.10 b-v=0.44 lgs=1
+ 05:28:00  08:59:25    open(min:sec) 0211:25          Closure(sec)       4
+ 08:59:29  12:10:05    open(min:sec) 0190:36          Closure(sec)      12
+
+eng407          17 37 49.387 +35 01  6.41 2000.0 vmag=10.19 b-v=0.46 lgs=1
+ 05:28:00  08:35:38    open(min:sec) 0187:38          Closure(sec)       8
+ 08:35:46  08:52:25    open(min:sec) 0016:39          Closure(sec)       5
+ 08:52:30  10:09:43    open(min:sec) 0077:13          Closure(sec)       7
+ 10:09:50  11:11:27    open(min:sec) 0061:37          Closure(sec)       6
+ 11:11:33  12:15:37    open(min:sec) 0064:04          Closure(sec)       8
+
+eng405          17 35  7.437 -06 26 22.36 2000.0 vmag=10.07 b-v=0.65 lgs=1
+ 05:28:00  07:28:27    open(min:sec) 0120:27          Closure(sec)     240
+ 07:32:27  08:05:45    open(min:sec) 0033:18          Closure(sec)       6
+ 08:05:51  08:15:28    open(min:sec) 0009:37          Closure(sec)       4
+ 08:15:32  09:57:01    open(min:sec) 0101:29          Closure(sec)       4
+ 09:57:05  11:02:36    open(min:sec) 0065:31          Closure(sec)       8
+
+eng432          18 39 25.499 +15 39 32.90 2000.0 vmag=10.07 b-v=0.61 lgs=1
+ 05:28:00  06:50:24    open(min:sec) 0082:24          Closure(sec)       4
+ 06:50:28  11:39:50    open(min:sec) 0289:22          Closure(sec)      10
+ 11:40:00  13:15:45    open(min:sec) 0095:45          Closure(sec)      12
+
+eng492          20 41 14.886 +34 26 51.30 2000.0 vmag=10.05 b-v=0.38 lgs=1
+ 05:28:00  11:50:07    open(min:sec) 0382:07          Closure(sec)       5
+ 11:50:12  11:59:46    open(min:sec) 0009:34          Closure(sec)       9
+ 11:59:55  12:03:36    open(min:sec) 0003:41          Closure(sec)       6
+ 12:03:42  15:27:00    open(min:sec) 0203:18
+
+eng491          20 40 29.769 +15 18 45.69 2000.0 vmag=10.10 b-v=0.34 lgs=1
+ 05:28:00  09:02:06    open(min:sec) 0214:06          Closure(sec)       5
+ 09:02:11  15:27:00    open(min:sec) 0384:49
+
+eng494          20 43 13.802 -05 29 43.79 2000.0 vmag=10.11 b-v=0.55 lgs=1
+ 05:28:00  10:04:11    open(min:sec) 0276:11          Closure(sec)       3
+ 10:04:14  10:04:31    open(min:sec) 0000:17          Closure(sec)       5
+ 10:04:36  15:12:02    open(min:sec) 0307:26          Closure(sec)     385
+
+eng554          22 40 49.164 +14 54 14.05 2000.0 vmag=10.07 b-v=0.73 lgs=1
+ 05:39:36  10:11:31    open(min:sec) 0271:55          Closure(sec)       5
+ 10:11:36  11:50:33    open(min:sec) 0098:57          Closure(sec)       6
+ 11:50:39  12:00:14    open(min:sec) 0009:35          Closure(sec)      10
+ 12:00:24  14:57:39    open(min:sec) 0177:15          Closure(sec)       4
+ 14:57:43  15:27:00    open(min:sec) 0029:17
+
+eng582          23 41 34.871 -04 55 29.20 2000.0 vmag=10.16 b-v=0.49 lgs=1
+ 07:09:18  11:50:54    open(min:sec) 0281:36          Closure(sec)       7
+ 11:51:01  12:00:35    open(min:sec) 0009:34          Closure(sec)      12
+ 12:00:47  12:08:33    open(min:sec) 0007:46          Closure(sec)       4
+ 12:08:37  15:27:00    open(min:sec) 0198:23
+
+eng583          23 41 38.402 +35 17 24.42 2000.0 vmag=10.20 b-v=0.38 lgs=1
+ 06:03:12  14:11:51    open(min:sec) 0488:39          Closure(sec)       7
+ 14:11:58  15:27:00    open(min:sec) 0075:02
+
+eng017          00 42 10.668 +14 42 53.60 2000.0 vmag=10.03 b-v=0.64 lgs=1
+ 09:52:55  10:42:13    open(min:sec) 0049:18          Closure(sec)      12
+ 10:42:25  15:09:55    open(min:sec) 0267:30          Closure(sec)      12
+ 15:10:07  15:27:00    open(min:sec) 0016:53
+
+eng069          02 40 21.564 -04 55 26.70 2000.0 vmag=10.20 b-v=0.68 lgs=1
+ 10:45:19  15:27:00    open(min:sec) 0281:41
+
+eng068          02 38 55.618 +15 26 17.76 2000.0 vmag=10.16 b-v=0.63 lgs=1
+ 10:14:53  15:27:00    open(min:sec) 0312:07
+
+eng070          02 41 40.127 +35 40 38.73 2000.0 vmag=10.15 b-v=0.65 lgs=1
+ 09:08:59  15:27:00    open(min:sec) 0378:01
+
+eng117          04 41 19.757 +15 30 42.95 2000.0 vmag=10.00 b-v=0.57 lgs=1
+ 11:38:23  15:27:00    open(min:sec) 0228:37
+
+eng148          05 41  5.611 +35 23 23.00 2000.0 vmag=10.05 b-v=0.58 lgs=1
+ 12:01:53  15:27:00    open(min:sec) 0205:07
