@@ -17,7 +17,7 @@ import io
 import numpy as np
 from astropy.coordinates import SkyCoord, Angle
 from astropy.table import Table, Column, MaskedColumn
-from .starlist import parse_starlist
+from .starlist import parse_starlist, parse_starlist_line
 
 class Target(object):
     """A single target object, with a position, name, and keyword arguments."""
@@ -82,6 +82,12 @@ class Target(object):
                                 epoch = position.equinox.jyear,
                                 keywords = " ".join(self._repr_keywords_()))
         return line
+        
+    @classmethod
+    def from_starlist(cls, line):
+        """Parse a single line from a starlist into the Target data structure."""
+        name, position, kw = parse_starlist_line(line)
+        return cls(name=name, position=position, _keywords=kw)
     
 
 class TargetList(collections.MutableSequence, list):
