@@ -64,11 +64,15 @@ class Target(object):
         
     def pos_string(self):
         """Position string, in a nicely formatted way."""
-        position = self.position.transform_to('icrs')
-        string = "{ra:s} {dec:s}".format(
-            ra = position.ra.to_string(u.hourangle, precision=3, pad=True),
-            dec = position.dec.to_string(u.deg, precision=3, pad=True, alwayssign=True),
-            )
+        try:
+            position = self.position.transform_to('icrs')
+        except (AttributeError, ValueError):
+            string = self.position.to_string()
+        else:
+            string = "{ra:s} {dec:s}".format(
+                ra = position.ra.to_string(u.hourangle, precision=3, pad=True),
+                dec = position.dec.to_string(u.deg, precision=3, pad=True, alwayssign=True),
+                )
         return string
         
     def to_starlist(self):
