@@ -178,7 +178,7 @@ class TargetList(collections.MutableSequence, list):
             table.remove_columns(['RA', 'Dec'])
         else:
             raise ValueError("Table must have either 'Position' or 'RA' and 'Dec' columns.")
-        return cls(Target(name, position, **{k:row[k] for k in row.colnames if row[k] is not np.ma.masked }) for name, position, row in zip(names, positions, table))
+        return cls(Target(name, position, _keywords=[(k,row[k]) for k in row.colnames if row[k] is not np.ma.masked ]) for name, position, row in zip(names, positions, table))
     
     @property
     def names(self):
