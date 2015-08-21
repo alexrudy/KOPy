@@ -2,9 +2,11 @@
 Keck Observing Python
 *********************
 
-This is the documentation for the affiliated package.
+This package contains some basics for observing with Keck.
 
-Reference/API
-=============
-
-.. automodapi:: KOPy
+.. toctree::
+    :maxdepth: 2
+    
+    starlist.rst
+    targets.rst
+    closures.rst
