@@ -22,6 +22,7 @@ import numpy as np
 import glob
 import os, os.path
 import datetime
+import weakref
 
 import astropy.units as u
 from astropy.time import Time
@@ -32,11 +33,13 @@ from astropy.utils.data import get_readable_fileobj
 from .targets import Target
 from .starlist import read_skip_comments
 
+__all__ = ['Region', 'Closure', 'Opening', 'Regions']
+
 class Region(Target):
     """Region for LCH Closures"""
     
-    REGISTRY = {}
     RADIUS = 2 * u.arcmin
+    """Radius around this region covered by the closure."""
     
     def __init__(self, *args, **kwargs):
         super(Region, self).__init__(*args, **kwargs)
@@ -44,7 +47,11 @@ class Region(Target):
     
     def contains(self, position):
         """Test whether a position is within this LCH region."""
-        return (self.position - position) < self.RADIUS
+        try:
+            contained = (self.position.separation(location) > self.RADIUS)
+        except (AttributeError, ValueError):
+            return False
+        return contained
     
     @property
     def openings(self):
@@ -119,7 +126,7 @@ class Window(object):
     """An LCH Window"""
     def __init__(self, region, start, end):
         super(Window, self).__init__()
-        self.region = region
+        self._region = weakref.ref(region)
         self.start = start
         self.end = end
     
@@ -132,7 +139,12 @@ class Window(object):
             return "<{0:s} from {1.datetime:%H:%M:%S} to {2.datetime:%H:%M:%S} ({3:.0f})>".format(self.__class__.__name__, self.start, self.end, self.duration)
         except AttributeError:
             return super(Window, self).__repr__()
-        
+    
+    @property
+    def region(self):
+        """Region property"""
+        return self._region()
+    
     @property
     def duration(self):
         """The duration of this closure."""
@@ -185,7 +197,7 @@ class Opening(Window):
     
 
 
-class LCHRegions(collections.OrderedDict):
+class Regions(collections.OrderedDict):
     """A dictionary interface for LCH regions.
     
     The dictionary keys are the region names, taken from the starlist formatted lines.
@@ -193,7 +205,7 @@ class LCHRegions(collections.OrderedDict):
     
     """
     def __init__(self, *args, **kwargs):
-        super(LCHRegions, self).__init__(*args, **kwargs)
+        super(Regions, self).__init__(*args, **kwargs)
     
     def __repr__(self):
         """Represent this summary group."""
@@ -201,6 +213,43 @@ class LCHRegions(collections.OrderedDict):
         repr_str += ["N={0:d}".format(self.n_objects)]
         repr_str += ["({0:d} for {0:.0f})".format(self.n_closures, self.t_closures)]
         return " ".join(repr_str) + ">"
+        
+    def contains(self, location):
+        """Check if this location is covered by any of the regions here."""
+        return any(region.contains(location) for region in self.values())
+        
+    def open(self, location, time):
+        """Check if this location and time is open for laser propagation."""
+        contained = False
+        open = True
+        for region in self.values():
+            this_contain = region.contains(location)
+            contained |= this_contain
+            if this_contain:
+                this_open = region.open(time)
+                if not this_open:
+                    return False
+                open &= this_open
+        return (contained and open)
+        
+    def closed(self, location, time):
+        """Check if this location and time is closed."""
+        return not self.open(location, time)
+        
+    def to_starlist(self, filename):
+        """Write to a starlist."""
+        if isinstance(filename, io.IOBase) or hasattr(filename, 'write'):
+            stream = filename
+            self._to_starlist_stream(stream)
+        else:
+            with open(filename, mode) as stream:
+                self._to_starlist_stream(stream)
+        
+    def _to_starlist_stream(self, file):
+        """Create a full starlist."""
+        for t in self.values():
+            file.write(t.to_starlist())
+            file.write("\n")
         
     @property
     def n_objects(self):
@@ -229,7 +278,7 @@ class LCHRegions(collections.OrderedDict):
 class _LCHParser(object):
     """Closure Parsing State"""
     
-    def __init__(self, name, date=None, regioncls=LCHRegions):
+    def __init__(self, name, date=None, regioncls=Regions):
         super(_LCHParser, self).__init__()
         self._name = name
         self._date = Time(date)
