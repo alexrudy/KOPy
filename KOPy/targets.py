@@ -8,6 +8,20 @@
 #
 """
 :mod:`targets` provides an object-oriented way to work with starlists in the Keck starlist format.
+
+For example::
+    
+    >>> t = Target.from_starlist("S2CM006571      05 04 37.23 -19 37 04.58 2000 b-r=2.38 b-v=0.57 rmag=14.73")
+    >>> t
+    <Target 'S2CM006571'@'05h04m37.23s -19d37m04.58s' rmag=14.73, b-r=2.38, b-v=0.57>
+    >>> t.to_starlist()
+    'S2CM006571      05 04 37.230 -19 37 04.580 2000 rmag=14.73 b-r=2.38 b-v=0.57'
+    >>> tl = TargetList([t])
+    >>> tl
+    [<Target 'S2CM006571'@'05h04m37.23s -19d37m04.58s' rmag=14.73, b-r=2.38, b-v=0.57>]
+    >>> tl.to_starlist(filename=None)
+    'S2CM006571      05 04 37.230 -19 37 04.580 2000 rmag=14.73 b-r=2.38 b-v=0.57\\n'
+
 """
 
 import six
@@ -17,17 +31,67 @@ import io
 import numpy as np
 from astropy.coordinates import SkyCoord, Angle
 from astropy.table import Table, Column, MaskedColumn
-from .starlist import parse_starlist, parse_starlist_line
+from .starlist import (parse_starlist, parse_starlist_line, 
+    format_starlist_line, format_keywords, format_starlist_position)
+
+__all__ = ['Target', 'TargetList']
 
 class Target(object):
-    """A single target object, with a position, name, and keyword arguments."""
+    """A single target object, with a position, name, and keyword arguments.
     
-    keywords = {}
+    Parameters
+    ----------
+    name : string
+        Name of the target.
+    position : :class:`~astropy.coordinates.SkyCoord`
+        Sky coordinate position.
+    keywords : Key-value pairs
+        Additional keywords can be passed to the constructor and will be used
+        to populate the keyword dictionary. To preserve the order of keywords
+        passed to the constructor, pass an ordered dict or similar to the ``_keywords``
+        argument.
+    
+    Examples
+    --------
+    
+    Construct a target from a name resolved via SIMBAD:
+        
+        >>> Target.from_name("M1") # doctest: +SKIP
+        <Target 'M1'@...>
+        >>> t = Target("Galaxy", SkyCoord(10, 12, unit=(u.deg, u.deg), frame='icrs'))
+        >>> t
+        <Target 'Galaxy'@...>
+        >>> t.name
+        'Galaxy'
+        >>> t2 = Target("GuideStar", t.position, rmag=12)
+        >>> t2.keywords['vmag'] = 15
+        >>> t2.keywords['rmag']
+        12
+        >>> t2
+        <Target 'GuideStar'@... rmag=12.00, vmag=15.00>
+    
+    Using a constructed target, make a starlist item:
+        
+        >>> t2.to_starlist()
+        'GuideStar       00 40 00.002 +12 00 00.006 2000 rmag=12.00 vmag=15.00'
+    
+    """
+    
+    __slots__ = ('name', 'position', 'keywords')
+    
+    # name = None
+    # """Name of the target"""
+    #
+    # position = None
+    # """Position of the target, an :class:`~astropy.coordinates.SkyCoord` object."""
+    #
+    # keywords = {}
+    # """Keyword-value pairs from the starlist, as a dictionary."""
     
     def __init__(self, name, position, _keywords=dict(), **kwargs):
         super(Target, self).__init__()
         self.name = str(name)
-        self.position = SkyCoord(position)
+        self.position = position if isinstance(position, SkyCoord) else SkyCoord(position)
         self.keywords = collections.OrderedDict()
         self.keywords.update(_keywords)
         self.keywords.update(kwargs)
@@ -41,7 +105,8 @@ class Target(object):
         
     def __repr__(self):
         """Represent a target."""
-        return "<{0:s} '{1:s}'@'{2:s}' {3:s}>".format(self.__class__.__name__, self.name, self.pos_string(), ", ".join(self._repr_keywords_()))
+        return "<{0:s} '{1:s}'@'{2:s}' {3:s}>".format(self.__class__.__name__, 
+            self.name, self.pos_string(), ", ".join(self._repr_keywords_()))
         
     def __eq__(self, other):
         """Equality."""
@@ -49,57 +114,48 @@ class Target(object):
         
     def _repr_keywords_(self):
         """Clean representation of keywords."""
-        if not len(self.keywords):
-            return [""]
-        keywords = []
-        for key, value in self.keywords.items():
-            if "mag" == key[-3:]:
-                keywords.insert(0, "{key}={value:.2f}".format(key=key, value=float(value)))
-            else:
-                value = six.text_type(value)
-                if " " in value:
-                    value = "'" + value + "'"
-                keywords.append("{key:s}={value:s}".format(key=key, value=value))
-        return keywords
+        return format_keywords(self.keywords)
         
     def pos_string(self):
         """Position string, in a nicely formatted way."""
-        try:
-            position = self.position.transform_to('icrs')
-        except (AttributeError, ValueError):
-            string = self.position.to_string()
-        else:
-            string = "{ra:s} {dec:s}".format(
-                ra = position.ra.to_string(u.hourangle, precision=3, pad=True),
-                dec = position.dec.to_string(u.deg, precision=3, pad=True, alwayssign=True),
-                )
-        return string
+        return self.position.to_string('hmsdms')
         
-    def to_starlist(self):
+    def to_starlist(self, **kwargs):
         """Return a starlist line."""
-        position = self.position.transform_to('fk5')
-        name = six.text_type(self.name).strip().replace(" ","_")
-        line = "{name:<15.15s} {ra:s} {dec:s} {epoch:.0f} {keywords:s}".format(
-                                name = name,
-                                ra = position.ra.to_string(u.hourangle, sep=' ', precision=3, pad=True),
-                                dec = position.dec.to_string(u.deg, sep=" ", precision=3, pad=True, alwayssign=True),
-                                epoch = position.equinox.jyear,
-                                keywords = " ".join(self._repr_keywords_()))
-        return line
+        return format_starlist_line(self.name, self.position, self.keywords, **kwargs)
         
     @classmethod
     def from_starlist(cls, line):
         """Parse a single line from a starlist into the Target data structure."""
         name, position, kw = parse_starlist_line(line)
         return cls(name=name, position=position, _keywords=kw)
+        
+    @classmethod
+    def from_name(cls, name):
+        """Use the SkyCoord name resolution (which works via Simbad) to find the coordinates of a name."""
+        position = SkyCoord.from_name(name)
+        return cls(name=name, position=position)
     
 
-class TargetList(collections.MutableSequence, list):
-    """A target list"""
+class TargetList(collections.MutableSequence):
+    """A target list.
+    
+    Target lists are lists of :class:`Target` objects, with a few special methods.
+    
+    Parameters
+    ----------
+    iterable : 
+    
+    """
     def __init__(self, iterable=None):
         super(TargetList, self).__init__()
+        self.__data = []
         if iterable is not None:
             self.extend(iterable)
+    
+    def __repr__(self):
+        """Represent the target list."""
+        return repr(self.__data)
     
     @classmethod
     def _type_check(cls, value):
@@ -112,7 +168,7 @@ class TargetList(collections.MutableSequence, list):
     
     def __setitem__(self, key, value):
         """Ensure type consistency!"""
-        return list.__setitem__(self, key, self._type_check(value))
+        return self.__data.__setitem__(key, self._type_check(value))
     
     if six.PY2:
         def __getslice__(self, start, end):
@@ -132,30 +188,41 @@ class TargetList(collections.MutableSequence, list):
         
         # Support regular list indexing, but turn it into a TargetList
         # if we would otherwise return a list.
-        r = list.__getitem__(self, key)
+        r = self.__data.__getitem__(key)
         if isinstance(r, list):
             return self.__class__(r)
         return r
         
+    def __delitem__(self, key):
+        """Delete an item by key."""
+        if isinstance(key, six.string_types):
+            for i, t in self:
+                if t.name == key:
+                    key = i
+                    break
+            else:
+                raise ValueError("No target with name '{0:s}' found".format(key))
+        return self.__data.__delitem__(key)
+        
     def __add__(self, item):
         """Add two TargetList objects together."""
-        return self.__class__(super(TargetList, self).__add__(item))
+        return self.__class__(self.__data.__add__(item))
         
     def __mul__(self, value):
         """Multiply"""
-        return self.__class__(super(TargetList, self).__mul__(value))
+        return self.__class__(self.__data.__mul__(value))
     
     def __rmul__(self, value):
         """Reverse multiply."""
-        return self.__class__(super(TargetList, self).__rmul__(value))
+        return self.__class__(self.__data.__rmul__(value))
         
     def __len__(self):
         """Length, from the underlying list."""
-        return list.__len__(self)
+        return self.__data.__len__()
         
     def insert(self, index, item):
         """Insert an item, and check type."""
-        return list.insert(self, index, self._type_check(item))
+        return self.__data.insert(index, self._type_check(item))
     
     @classmethod
     def from_starlist(cls, filename):
@@ -216,18 +283,20 @@ class TargetList(collections.MutableSequence, list):
             t.add_column(MaskedColumn(catalog.dec, name="Dec", format=lambda c : Angle(c).to_string(), mask=np.zeros(catalog.shape, dtype=np.bool)), index=2)
         return t
         
-    def to_starlist_stream(self, file):
+    def _to_starlist_stream(self, file, **kwargs):
         """Write to a stream"""
         for t in self:
-            file.write(t.to_starlist())
+            file.write(t.to_starlist(**kwargs))
             file.write("\n")
         
-    def to_starlist(self, filename, mode='w'):
+    def to_starlist(self, filename, mode='w', **kwargs):
         """Write to a starlist file."""
+        if filename is None:
+            return "\n".join([t.to_starlist(**kwargs) for t in self]) + "\n"
         if isinstance(filename, io.IOBase) or hasattr(filename, 'write'):
             stream = filename
-            self.to_starlist_stream(stream)
+            self._to_starlist_stream(stream, **kwargs)
         else:
             with open(filename, mode) as stream:
-                self.to_starlist_stream(stream)
+                self._to_starlist_stream(stream, **kwargs)
         
