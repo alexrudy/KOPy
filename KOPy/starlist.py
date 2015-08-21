@@ -1,25 +1,29 @@
+# Author: Alex Rudy, UCSC
+# Date: 2015-01-24
+# License: BSD
 """
 This is a parser for the Keck starlist format.
-The format is documented at the Keck website: <https://www2.keck.hawaii.edu/observing/starlist.html>
+The format is documented at the Keck website: https://www2.keck.hawaii.edu/observing/starlist.html
 
-Author: Alex Rudy, UCSC
-Date: 2015-01-24
-License: BSD
+This module is a functional interface to starlist parsing. A more user-friendly object-oriented user interface is provided in :mod:`~KOPy.targets`
 """
 
 import warnings
 from datetime import date, datetime
 import io
 import contextlib
+import six
 import astropy.units as u
 import astropy.time
 from astropy.coordinates import SkyCoord, FK4, FK5, AltAz
 from astropy.utils.data import get_readable_fileobj
 from collections import OrderedDict
 
-from . import version
-
+from . import __version__
 import re
+
+__all__ = ['tokenize', 'verify_starlist_line', 'parse_starlist_line', 'read_skip_comments', 'stream_skip_comments', 'parse_starlist', 'format_starlist_line']
+
 _starlist_re_raw = r"""
     ^(?P<Name>.{1,15})[\s]+ # Target name must be the first 15 characters.
     (?P<RA>(?:[\d]{1,2}[\s:h][\s\d]?[\d][\s:m][\s\d]?[\d](?:\.[\d]+)?s?)|(?:[\d]+\.[\d]+))[\s]+  # Right Ascension, HH MM SS.SS+
@@ -41,7 +45,23 @@ _starlist_re_strict = r"""
 _starlist_token_parts = ["Name", "RA", "Dec", "Equinox", "Keywords"]
 
 def tokenize(text, identifier="<stream>"):
-    """Parse a starlist line into individual tokens, looking for the first bad token."""
+    """Parse a starlist line into individual tokens, looking for the first bad token.
+    
+    This function will parse individual tokens with the starlist regular expression, and will raise an :exc:`ValueError` when it encounters an invalid token. 
+    
+    Parameters
+    ----------
+    text : string
+        The string to tokenize.
+    identifier : string
+        An identifier (usually the filename) to use in the error message for when parsing fails.
+    
+    Raises
+    ------
+    ValueError
+        When a token can't be parsed.
+    
+    """
     token_res = [re.compile(t) for t in _starlist_re_raw.splitlines()]
     for token_re, token_name in zip(token_res, _starlist_token_parts):
         m = token_re.match(text)
@@ -51,41 +71,62 @@ def tokenize(text, identifier="<stream>"):
         
 
 def verify_starlist_line(text, identifier="<stream>", warning=False):
-    """Verify that the given line is a valid starlist."""
+    """Verify that the given line is a valid starlist.
+    
+    Parameters
+    ----------
+    text : string
+        The string to tokenize.
+    identifier : string
+        An identifier (usually the filename) to use in the error message for when parsing fails.
+    warning : bool
+        Whether to emit the messages indicating problems with the starlist format as warnings.
+    
+    Raises
+    ------
+    ValueError
+        When a line can't be parsed, even with the forgiving starlist regular expression.
+        
+    Returns
+    -------
+    messages : list
+        A list of messages indicating problems with the starlist line verification.
+    
+    """
     line = text
     messages = []
     match = _starlist_re.match(text)
     if not match:
-        raise ValueError("Couldn't parse '{0:s}', no regular expression match found.".format(text))
+        raise ValueError("Couldn't parse '{0:s}', no regular expression match found.".format(text.strip("\n\r")))
     data = match.groupdict("")
     
     # Check the Name:
     name_length = match.end('Name') - match.start('Name') + 1
     if name_length < 15:
-        messages.append(('Warning','Name','Name should be exactly 15 characters long (whitespace is ok.) len(Name)={0:d}'.format(name_length)))
+        messages.append(('WARNING','Name','Name should be exactly 15 characters long (whitespace is ok.) len(Name)={0:d}'.format(name_length)))
     
     # Check the RA starting position.
     if match.start('RA') + 1 != 17:
-        messages.append(('Error','RA','RA must start in column 17. Start: {0:d}'.format(match.start('RA')+1)))
+        messages.append(('ERROR','RA','RA must start in column 17. Start: {0:d}'.format(match.start('RA')+1)))
     
     # Check the Dec starting token
     if match.start('Dec') - match.end('RA') != 1:
-        messages.append(('Warning','Dec','RA and Dec should be separated by only a single space, found {0:d} characters.'.format(match.start('Dec') - match.end('RA'))))
+        messages.append(('WARNING','Dec','RA and Dec should be separated by only a single space, found {0:d} characters.'.format(match.start('Dec') - match.end('RA'))))
     
     # Check the Equinox starting token.
     if match.start('Equinox') - match.end('Dec') != 1:
-        messages.append(('Warning','Equinox','Dec and Equinox should be separated by only a single space, found {0:d} characters.'.format(match.start('Equinox') - match.end('Dec'))))
+        messages.append(('WARNING','Equinox','Dec and Equinox should be separated by only a single space, found {0:d} characters.'.format(match.start('Equinox') - match.end('Dec'))))
     
     if match.group("Keywords") and len(match.group("Keywords")):
         for kwarg in match.group("Keywords").split():
             if kwarg.count("=") < 1:
-                messages.append(('Error', 'Keywords', 'Each keyword/value pair must have 1 "=", none found {!r}'.format(kwarg)))
+                messages.append(('ERROR', 'Keywords', 'Each keyword/value pair must have 1 "=", none found {!r}'.format(kwarg)))
             if kwarg.count("=") > 1:
-                messages.append(('Error', 'Keywords', 'Each keyword/value pair must have 1 "=", {0:d} found {1!r}'.format(kwarg.count("="), kwarg)))
+                messages.append(('ERROR', 'Keywords', 'Each keyword/value pair must have 1 "=", {0:d} found {1!r}'.format(kwarg.count("="), kwarg)))
     
     composed_messages = []
     for severity, token, message in messages:
-        composed_message = "[{0}][{1} {2}] {3}".format(severity, identifier, token, message)
+        composed_message = "[{0:s}] {3} [{1} {2}]".format(severity, identifier, token, message)
         if warning:
             warnings.warn(composed_message)
         else:
@@ -95,14 +136,26 @@ def verify_starlist_line(text, identifier="<stream>", warning=False):
 def parse_starlist_line(text):
     """Parse a single line from a Keck formatted starlist, returning a dictionary of parsed values.
     
-    :param text: The starlist text line.
-    :returns: A dictionary of starlist object properties, set from teh starlist line.
-    :raises: ValueError if the line couldn't be parsed.
+    This uses the forgiving starlist parser, which should be robust to various errors in starlist file formats.
     
-    This function parses a single line from a starlist and returns a dictionary of items from that line. The followig keys are included:
-    - `Name`: The target name.
-    - `Position`: An astropy.coordinates object representing this position.
-    - Any other keyword/value pairs, which are found at the end of the starlist line, and formatted as ``keyword=value``
+    Parameters
+    ----------
+    text : string
+        The starlist text line.
+        
+    Raises
+    ------
+    ValueError :
+        Raised if the line couldn't be parsed by the forgiving parser.
+    
+    Returns
+    -------
+    name : string
+        The target name
+    position : :class:`~astropy.coordinates.SkyCoord`
+        The target position, as a :class:`~astropy.coordinates.SkyCoord` object.
+    keywords : OrderedDict
+        An ordered dictionary of keyword values applied to the starlist line.
     
     """
     match = _starlist_re.match(text)
@@ -132,39 +185,188 @@ def parse_starlist_line(text):
             continue
         keyword, value = keywordvalue.split("=",1)
         keyword = keyword.strip()
-        results[keyword] = value.strip()
+        results[keyword] = value.strip().replace("=","")
     return data['Name'].strip(), position, results
     
 def read_skip_comments(filename, comments="#"):
-    """Read a filename, yielding lines that don't start with comments."""
+    """Read a filename, yielding lines that don't start with comments.
+    
+    Parameters
+    ----------
+    filename : string or filobj
+        The file to be opened and read from.
+    comments : string
+        The string used to match the beginning of comment lines.
+    
+    Yields
+    ------
+    line : string
+        Lines from the file which don't start with the comment string.
+    
+    """
     with get_readable_fileobj(filename) as stream:
         for line in stream_skip_comments(stream, comments):
             yield line
 
 def stream_skip_comments(stream, comments="#"):
-    """Skip comment lines from a stream."""
+    """Skip comment lines from a stream.
+    
+    Parameters
+    ----------
+    stream : io.BaseIO
+        The stream object to be read from.
+    comments : string
+        The string used to match the beginning of comment lines.
+    
+    Yields
+    ------
+    line : string
+        Lines from the file which don't start with the comment string.
+    
+    """
     for line in stream:
-        if not line.startswith(comments):
+        if not line.startswith(comments) and len(line.strip("\n\r")):
             yield line.strip("\n\r").strip()
     
 def parse_starlist(starlist):
-    """Parse a starlist into a sequence of dictionaries."""
+    """Parse a full starlist file into a generator of target objects.
+    
+    Parameters
+    ----------
+    starlist : string or filobj
+        The file to be opened and read from.
+    
+    Yields
+    ------
+    name : string
+        The target name
+    position : :class:`~astropy.coordinates.SkyCoord`
+        The target position, as a :class:`~astropy.coordinates.SkyCoord` object.
+    keywords : OrderedDict
+        An ordered dictionary of keyword values applied to the starlist line.
+    
+    """
     for line in read_skip_comments(starlist):
         yield parse_starlist_line(line)
     
+def format_starlist_position(position):
+    """Output a SkyCoord object in the starlist format."""
+    try:
+        position = position.transform_to('fk5')
+        if position.frame.equinox.jyear <= 1950:
+            position = position.transform_to('fk4')
+    except (ValueError, AttributeError):
+        if not isinstance(position.frame, AltAz):
+            raise ValueError("Can't understand frame for coordinates, should be transformable to FK5 or AltAz, got {!r}".format(position.frame))
+        position_string = "{0:2.5f} {1:2.5f}".format(position.az.to(u.deg).value, position.alt.to(u.deg))
+    else:
+        position_string = "{ra:s} {dec:s} {epoch:.0f}".format(
+            ra = position.ra.to_string(u.hourangle, sep=' ', precision=3, pad=True),
+            dec = position.dec.to_string(u.deg, sep=" ", precision=3, pad=True, alwayssign=True),
+            epoch = position.equinox.jyear
+        )
+    return position_string
+    
+def _format_rotator_mode(value):
+    """Format rotator mode, and rais appropriate error if it can't be formatted."""
+    modes = set(['pa', 'vertical', 'stationary'])
+    if value.lower() not in modes:
+        raise ValueError("Rotator mode must be in {!r}".format(modes))
+    return value.lower()
+    
+FRONT_KEYWORDS = {
+    r'.*mag' : lambda value : "{:.2f}".format(float(value)),
+    r'pm(ra|dec)': lambda value : "{:.5f}".format(u.Quantity(value, u.second / u.year).value),
+    r'dra': lambda value : "{:.4}".format((u.Quantity(value, u.arcsec/u.hr) / 15).value),
+    r'ddec': lambda value : "{:.3}".format(u.Quantity(value, u.arcsec/u.hr).value),
+    r'rotdest': lambda value : "{:.2f}".format(u.Quantity(value, u.degree).value),
+    r'rotmode': _format_rotator_mode,
+    r'raoffset' : lambda value : "{:.1f}".format(u.Quantity(value, u.arcsecond).value),
+    r'decoffset' : lambda value : "{:.1f}".format(u.Quantity(value, u.arcsecond).value),
+}
+
+def format_keywords(keywords):
+    """Format starlist keywords in a reasonable way.
+    
+    This method ensures that keywords are correctly formatted for starlist output.
+    It handles keywords with Quantity values and units, and ensures that all keywords
+    are presented to a uniform precision if possible. When this isn't possible, the raw
+    value of the keyword is converted to a string and included in the output.
+    
+    Parameters
+    ----------
+    keywords : dict-like
+        A dictionary or ordered dictionary of keyword value pairs.
+    
+    Returns
+    -------
+    A list of strings, formatted for each keyword individually.
+    
+    """
+    if not len(keywords):
+        return [""]
+    output = []
+    output_fkeywords = []
+    for key, value in keywords.items():
+        for exp in FRONT_KEYWORDS:
+            try:
+                if re.match(exp, key):
+                    output_fkeywords.append("{key}={value:s}".format(key=key, value=FRONT_KEYWORDS[exp](value)))
+                    break
+            except (ValueError, TypeError):
+                pass
+        else:
+            value = six.text_type(value)
+            if " " in value:
+                value = "'" + value + "'"
+            output.append("{key:s}={value:s}".format(key=key, value=value))
+    return output_fkeywords + output
+    
+def format_starlist_line(name, position, keywords, remove_spaces=False):
+    """Output the starlist."""
+    name = six.text_type(name).strip()
+    if remove_spaces:
+        name = name.replace(" ","_")
+    line = "{name:<15.15s} {position:s} {keywords:s}".format(
+                            name = name,
+                            position = format_starlist_position(position),
+                            keywords = " ".join(format_keywords(keywords)))
+    return line
+    
 def main():
-    """Command-line interface for starlist parsing."""
+    """Command-line interface for starlist parsing and verification."""
     import argparse
-    parser = argparse.ArgumentParser(description="A Keck starlist parsing and verification tool")
-    parser.add_argumnet("starlist", metavar="starlist.txt", help="starlist filename", type=argparse.FileType('r'), default='starlist.txt')
+    import sys
+    parser = argparse.ArgumentParser(description="A Keck starlist parsing and verification tool", epilog="Parsing will be done in the 'lenient mode', with problems emitted to stderr. A correctly formatted starlist for each line, when available, will be printed to stdout, so that output can be piped into a clean starlist file.")
+    parser.add_argument("starlist", metavar="starlist.txt", help="starlist filename", type=argparse.FileType('r'), default='starlist.txt')
+    parser.add_argument("-o", dest='output', help="output filename", type=argparse.FileType("w"), default="-")
     opt = parser.parse_args()
-    print("Starlist Lint {0:s} for '{1:s}'".format(version, opt.name))
-    with get_readable_fileobj(starlist) as f:
-        for n, line in enumerate(f):
-            if not f.startswith("#"):
-                messages = verify_starlist_line(line, identifier="{!r} line {:d}".format(opt.starlist, n))
-                if len(messages):
-                    print(line)
-                    print("\n".join(messages))
     
-    
+    n_messages = 0
+    sys.stderr.write("Starlist Lint {0:s} for '{1:s}'\n".format(__version__, opt.starlist.name))
+    sys.stderr.flush()
+    for n, line in enumerate(opt.starlist):
+        if line.startswith("#"):
+            opt.output.write(line)
+            opt.output.flush()
+        else:
+            identifier = "{!r} line {:d}".format(opt.starlist.name, n+1)
+            try:
+                messages = verify_starlist_line(line, identifier=identifier)
+            except ValueError as e:
+                messages = ["[ERROR] {1} [{0}]".format(identifier, e)]
+            if len(messages):
+                sys.stderr.write("-> {}\n".format(line.strip("\n")))
+                sys.stderr.write("\n".join(messages))
+                sys.stderr.write("\n")
+                sys.stderr.flush()
+            n_messages += len(messages)
+            try:
+                formatted_line = format_starlist_line(*parse_starlist_line(line)) + "\n"
+            except ValueError:
+                formatted_line = line
+                opt.output.write("# WARNING Starlist lint couldn't parse next line.\n")
+            opt.output.write(formatted_line)
+            opt.output.flush()
+            
+    return n_messages
