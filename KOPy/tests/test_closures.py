@@ -4,7 +4,7 @@ Tests for the LGS closure parser.
 """
 
 import pytest
-from KOPy.closures import LCHRegions
+from KOPy.closures import Regions
 from astropy.time import Time
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def closures_filename():
 
 def test_parse_closures(closures_filename):
     """Test parse closures."""
-    regions = LCHRegions.parse(closures_filename, date='2015-08-07')
+    regions = Regions.parse(closures_filename, date='2015-08-07')
     assert "lazer_zenith" in regions
     assert "eng341" in regions
     

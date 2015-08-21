@@ -219,7 +219,28 @@ class Regions(collections.OrderedDict):
         return any(region.contains(location) for region in self.values())
         
     def open(self, location, time):
-        """Check if this location and time is open for laser propagation."""
+        """Check if this location and time is open for laser propagation.
+        
+        This method uses a conservative algorithm. Locations which are not
+        contained in any LCH region are declared closed. Locations which are
+        not declared open in all LCH regions where they fall are also declared
+        closed. LCH region size is set by the :attr:`Region.RADIUS` attribute,
+        and defaults to the 2 arcminute size which is standard at Keck.
+        
+        Parameters
+        ----------
+        location : :class:`~astropy.coordinates.SkyCoord`
+            The location to check against all of the contained regions.
+        time : :class:`~astropy.time.Time`
+            The time to check against all contained regions.
+        
+        Returns
+        -------
+        open : bool
+            Whether this location, at the specified time, is open for laser
+            propogation.
+        
+        """
         contained = False
         open = True
         for region in self.values():
