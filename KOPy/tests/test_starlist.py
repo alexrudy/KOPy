@@ -1,5 +1,8 @@
 import pytest
 from .. import starlist
+import astropy.units as u
+import numpy as np
+from astropy.tests.helper import assert_quantity_allclose
 
 def test_starlist_parse_line(starlist_line):
     """Ensure that we can parse a starlist line."""
@@ -21,3 +24,23 @@ def test_starlist_read_from_fd(starlist_fd):
     """Test reading a starlist from an open file"""
     starlist.parse_starlist(starlist_fd)
     
+    
+@pytest.mark.parametrize("keyword,value,units",[
+    ("Jmag=10.2", 10.2 * u.mag, u.mag),
+    ("B-Vmag=0.04", 0.04 * u.mag, u.mag),
+    ("pmra=0.01", 0.01 * (u.hourangle / 3600 / u.year), (u.hourangle / 3600 / u.year)),
+    ("pmdec=0.02", 0.02 * (u.arcsec / u.year), (u.arcsec / u.year)),
+    ("dra=1.1", 1.1 * (u.hourangle / 3600 / u.hr), (u.hourangle / 3600 / u.hr)),
+    ("ddec=2.0", 2.0 * (u.arcsec / u.hr), (u.arcsec / u.hr)),
+    ("rotdest=70", 70 * u.degree, u.degree),
+    ("raoffset=10", 10 * u.arcsec, u.arcsec),
+    ("decoffset=10", 10 * u.arcsec, u.arcsec),
+])
+def test_starlist_parse_keywords(keyword, value, units, starlist_line):
+    """Test that quantities are parsed correctly in keywords."""
+    starlist_line += " " + keyword
+    kwname = keyword.split("=",1)[0]
+    name, position, keywords = starlist.parse_starlist_line(starlist_line)
+    assert kwname in keywords
+    assert keywords[kwname].unit.is_equivalent(units)
+    assert_quantity_allclose(keywords[kwname], value)

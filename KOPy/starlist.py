@@ -185,7 +185,15 @@ def parse_starlist_line(text):
             continue
         keyword, value = keywordvalue.split("=",1)
         keyword = keyword.strip()
-        results[keyword] = value.strip().replace("=","")
+        for expression in PARSE_KEYWORDS:
+            if re.match(expression, keyword):
+                try:
+                    results[keyword] = PARSE_KEYWORDS[expression][1](value)
+                    break
+                except ValueError:
+                    pass
+        else:
+            results[keyword] = value.strip().replace("=","")
     return data['Name'].strip(), position, results
     
 def read_skip_comments(filename, comments="#"):
@@ -274,16 +282,30 @@ def _format_rotator_mode(value):
         raise ValueError("Rotator mode must be in {!r}".format(modes))
     return value.lower()
     
-FRONT_KEYWORDS = {
-    r'.*mag' : lambda value : "{:.2f}".format(float(value)),
-    r'pmdec': lambda value : "{:.5f}".format(u.Quantity(value, u.arcsec / u.year).value),
-    r'pmra' : lambda value : "{:.5f}".format(u.Quantity(value, u.hourangle / 3600 / u.year).value),
-    r'dra': lambda value : "{:.4}".format((u.Quantity(value, u.arcsec/u.hr) / 15).value),
-    r'ddec': lambda value : "{:.3}".format(u.Quantity(value, u.arcsec/u.hr).value),
-    r'rotdest': lambda value : "{:.2f}".format(u.Quantity(value, u.degree).value),
-    r'rotmode': _format_rotator_mode,
-    r'raoffset' : lambda value : "{:.1f}".format(u.Quantity(value, u.arcsecond).value),
-    r'decoffset' : lambda value : "{:.1f}".format(u.Quantity(value, u.arcsecond).value),
+    
+# secondangle is one second of time in angle units.
+_secondangle = u.hourangle / 3600
+
+# Dictionary which maps regular expressions which might match keyword values to quantity transformations which 
+# can output or parse values.
+PARSE_KEYWORDS = {
+    r'.*mag' : (lambda value : "{:.2f}".format(u.Quantity(value, u.mag).value), 
+        lambda value : u.Quantity(float(value), u.mag)),
+    r'pmdec': (lambda value : "{:.5f}".format(u.Quantity(value, u.arcsec / u.year).value), 
+        lambda value : u.Quantity(float(value), u.arcsec/u.year)),
+    r'pmra' : (lambda value : "{:.5f}".format(u.Quantity(value, _secondangle / u.year).value), 
+        lambda value : u.Quantity(float(value), _secondangle / u.year)),
+    r'dra': (lambda value : "{:.4}".format((u.Quantity(value,  _secondangle / u.hr)).value),
+        lambda value : u.Quantity(float(value), _secondangle / u.hr)),
+    r'ddec': (lambda value : "{:.3}".format(u.Quantity(value, u.arcsec/u.hr).value),
+        lambda value : u.Quantity(float(value), u.arcsec/u.hr)),
+    r'rotdest': (lambda value : "{:.2f}".format(u.Quantity(value, u.degree).value),
+        lambda value : u.Quantity(float(value), u.degree)),
+    r'rotmode': (_format_rotator_mode, lambda value : value.lower()),
+    r'raoffset' : (lambda value : "{:.1f}".format(u.Quantity(value, u.arcsecond).value),
+        lambda value : u.Quantity(float(value), u.arcsecond)),
+    r'decoffset' : (lambda value : "{:.1f}".format(u.Quantity(value, u.arcsecond).value),
+        lambda value : u.Quantity(float(value), u.arcsecond)),
 }
 
 def format_keywords(keywords):
@@ -309,10 +331,10 @@ def format_keywords(keywords):
     output = []
     output_fkeywords = []
     for key, value in keywords.items():
-        for exp in FRONT_KEYWORDS:
+        for exp in PARSE_KEYWORDS:
             try:
                 if re.match(exp, key):
-                    output_fkeywords.append("{key}={value:s}".format(key=key, value=FRONT_KEYWORDS[exp](value)))
+                    output_fkeywords.append("{key}={value:s}".format(key=key, value=PARSE_KEYWORDS[exp][0](value)))
                     break
             except (ValueError, TypeError):
                 pass
