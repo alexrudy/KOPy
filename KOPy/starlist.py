@@ -21,6 +21,7 @@ from collections import OrderedDict
 
 from . import __version__
 import re
+import os
 
 __all__ = ['tokenize', 'verify_starlist_line', 'parse_starlist_line', 'read_skip_comments', 'stream_skip_comments', 'parse_starlist', 'format_starlist_line']
 
@@ -365,6 +366,7 @@ def main():
     parser = argparse.ArgumentParser(description="A Keck starlist parsing and verification tool", epilog="Parsing will be done in the 'lenient mode', with problems emitted to stderr. A correctly formatted starlist for each line, when available, will be printed to stdout, so that output can be piped into a clean starlist file.")
     parser.add_argument("starlist", metavar="starlist.txt", help="starlist filename", type=argparse.FileType('r'), default='starlist.txt')
     parser.add_argument("-o", dest='output', help="output filename", type=argparse.FileType("w"), default="-")
+    parser.add_argument("--no-messages", dest='messages', action='store_false', help="suppress lint messages")
     opt = parser.parse_args()
     
     n_messages = 0
@@ -386,32 +388,33 @@ def main():
                 formatted_line = format_starlist_line(*parse_starlist_line(line)) + "\n"
             except ValueError:
                 formatted_line = line
-                opt.output.write("# WARNING Starlist lint couldn't parse next line.\n")
+                opt.output.write("# WARNING {0:s} couldn't parse next line.\n".format(os.path.basename(sys.argv[0])))
             opt.output.write(formatted_line)
             opt.output.flush()
             
-    color_print("Starlist Lint {0:s}".format(__version__), 'green', file=sys.stderr, end="")
-    sys.stderr.write(" for '{1:s}'\n".format(__version__, opt.starlist.name))
-    sys.stderr.flush()
-    if not len(all_messages):
-        color_print("No problems found.", 'green', file=sys.stderr)
-    else:
-        color_print("{0:d} problems found.".format(len(all_messages)), 'yellow', file=sys.stderr)
-    for n, line, messages in all_messages:
-        color_print("[line {0:d}] ".format(n), 'cyan', file=sys.stderr, end="")
-        color_print("=>", 'blue', file=sys.stderr, end="")
-        sys.stderr.write(" '{}'\n".format(line.strip("\n")))
-        for message in messages:
-            if message.startswith("[ERROR]"):
-                color_print(message[:len("[ERROR]")], 'red', file=sys.stderr, end="")
-                sys.stderr.write(message[len("[ERROR]"):])
-                sys.stderr.write("\n")
-            elif message.startswith("[WARNING]"):
-                color_print(message[:len("[WARNING]")], 'yellow', file=sys.stderr, end="")
-                sys.stderr.write(message[len("[WARNING]"):])
-                sys.stderr.write("\n")
-            else:
-                sys.stderr.write(message)
-                sys.stderr.write("\n")
+    if opt.messages:
+        color_print("Starlist Lint {0:s}".format(__version__), 'green', file=sys.stderr, end="")
+        sys.stderr.write(" for '{1:s}'\n".format(__version__, opt.starlist.name))
         sys.stderr.flush()
+        if not len(all_messages):
+            color_print("No problems found.", 'green', file=sys.stderr)
+        else:
+            color_print("{0:d} problems found.".format(len(all_messages)), 'yellow', file=sys.stderr)
+        for n, line, messages in all_messages:
+            color_print("[line {0:d}] ".format(n), 'cyan', file=sys.stderr, end="")
+            color_print("=>", 'blue', file=sys.stderr, end="")
+            sys.stderr.write(" '{}'\n".format(line.strip("\n")))
+            for message in messages:
+                if message.startswith("[ERROR]"):
+                    color_print(message[:len("[ERROR]")], 'red', file=sys.stderr, end="")
+                    sys.stderr.write(message[len("[ERROR]"):])
+                    sys.stderr.write("\n")
+                elif message.startswith("[WARNING]"):
+                    color_print(message[:len("[WARNING]")], 'yellow', file=sys.stderr, end="")
+                    sys.stderr.write(message[len("[WARNING]"):])
+                    sys.stderr.write("\n")
+                else:
+                    sys.stderr.write(message)
+                    sys.stderr.write("\n")
+            sys.stderr.flush()
     return n_messages
