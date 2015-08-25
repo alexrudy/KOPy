@@ -220,6 +220,10 @@ class TargetList(collections.MutableSequence):
         """Length, from the underlying list."""
         return self.__data.__len__()
         
+    def sort(self, *args, **kwargs):
+        """Sort the list."""
+        return self.__data.sort(*args, **kwargs)
+        
     def insert(self, index, item):
         """Insert an item, and check type."""
         return self.__data.insert(index, self._type_check(item))
