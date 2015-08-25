@@ -29,7 +29,8 @@ _starlist_re_raw = r"""
     (?P<RA>(?:[\d]{1,2}[\s:h][\s\d]?[\d][\s:m][\s\d]?[\d](?:\.[\d]+)?s?)|(?:[\d]+\.[\d]+))[\s]+  # Right Ascension, HH MM SS.SS+
     (?P<Dec>(?:[+-]?[\d]{1,2}[\s:d][\s\d]?[\d][\s:m][\s\d]?[\d](?:\.[\d]+)?s?)|(?:[\d]+\.[\d]+)) # Declination, (-)DD MM SS.SS+
     (?:[\s]+(?P<Equinox>(?:[\d]{4}(?:\.[\d]+)?)|(?:[A-Za-z]+)))?[\s]* # Equinox.
-    (?P<Keywords>.+)?$ # Everything else must be a keyword.
+    (?P<Keywords>[^\#]+)? # Everything else must be a keyword.
+    (?P<Comments>\#.+)?$ # Comments allowed at the end of lines.
     """
     
 _starlist_re = re.compile(_starlist_re_raw, re.VERBOSE)
@@ -108,14 +109,14 @@ def verify_starlist_line(text, identifier="<stream>", warning=False):
     # Check the RA starting position.
     if match.start('RA') + 1 != 17:
         messages.append(('ERROR','RA','RA must start in column 17. Start: {0:d}'.format(match.start('RA')+1)))
-    
-    # Check the Dec starting token
-    if match.start('Dec') - match.end('RA') != 1:
-        messages.append(('WARNING','Dec','RA and Dec should be separated by only a single space, found {0:d} characters.'.format(match.start('Dec') - match.end('RA'))))
-    
-    # Check the Equinox starting token.
-    if match.start('Equinox') - match.end('Dec') != 1:
-        messages.append(('WARNING','Equinox','Dec and Equinox should be separated by only a single space, found {0:d} characters.'.format(match.start('Equinox') - match.end('Dec'))))
+    #
+    # # Check the Dec starting token
+    # if match.start('Dec') - match.end('RA') != 1:
+    #     messages.append(('WARNING','Dec','RA and Dec should be separated by only a single space, found {0:d} characters.'.format(match.start('Dec') - match.end('RA'))))
+    #
+    # # Check the Equinox starting token.
+    # if match.start('Equinox') - match.end('Dec') != 1:
+    #     messages.append(('WARNING','Equinox','Dec and Equinox should be separated by only a single space, found {0:d} characters.'.format(match.start('Equinox') - match.end('Dec'))))
     
     if match.group("Keywords") and len(match.group("Keywords")):
         for kwarg in match.group("Keywords").split():
@@ -233,7 +234,7 @@ def stream_skip_comments(stream, comments="#"):
     
     """
     for line in stream:
-        if not line.startswith(comments) and len(line.strip("\n\r")):
+        if not line.startswith(comments) and not re.match(r"^[\s]*$", line.strip("\n\r")):
             yield line.strip("\n\r").strip()
     
 def parse_starlist(starlist):
@@ -360,16 +361,16 @@ def main():
     """Command-line interface for starlist parsing and verification."""
     import argparse
     import sys
+    from astropy.utils.console import color_print
     parser = argparse.ArgumentParser(description="A Keck starlist parsing and verification tool", epilog="Parsing will be done in the 'lenient mode', with problems emitted to stderr. A correctly formatted starlist for each line, when available, will be printed to stdout, so that output can be piped into a clean starlist file.")
     parser.add_argument("starlist", metavar="starlist.txt", help="starlist filename", type=argparse.FileType('r'), default='starlist.txt')
     parser.add_argument("-o", dest='output', help="output filename", type=argparse.FileType("w"), default="-")
     opt = parser.parse_args()
     
     n_messages = 0
-    sys.stderr.write("Starlist Lint {0:s} for '{1:s}'\n".format(__version__, opt.starlist.name))
-    sys.stderr.flush()
+    all_messages = []
     for n, line in enumerate(opt.starlist):
-        if line.startswith("#"):
+        if line.startswith("#") or len(line.strip()) == 0:
             opt.output.write(line)
             opt.output.flush()
         else:
@@ -379,10 +380,7 @@ def main():
             except ValueError as e:
                 messages = ["[ERROR] {1} [{0}]".format(identifier, e)]
             if len(messages):
-                sys.stderr.write("-> {}\n".format(line.strip("\n")))
-                sys.stderr.write("\n".join(messages))
-                sys.stderr.write("\n")
-                sys.stderr.flush()
+                all_messages.append((n, line, messages))
             n_messages += len(messages)
             try:
                 formatted_line = format_starlist_line(*parse_starlist_line(line)) + "\n"
@@ -392,4 +390,28 @@ def main():
             opt.output.write(formatted_line)
             opt.output.flush()
             
+    color_print("Starlist Lint {0:s}".format(__version__), 'green', file=sys.stderr, end="")
+    sys.stderr.write(" for '{1:s}'\n".format(__version__, opt.starlist.name))
+    sys.stderr.flush()
+    if not len(all_messages):
+        color_print("No problems found.", 'green', file=sys.stderr)
+    else:
+        color_print("{0:d} problems found.".format(len(all_messages)), 'yellow', file=sys.stderr)
+    for n, line, messages in all_messages:
+        color_print("[line {0:d}] ".format(n), 'cyan', file=sys.stderr, end="")
+        color_print("=>", 'blue', file=sys.stderr, end="")
+        sys.stderr.write(" '{}'\n".format(line.strip("\n")))
+        for message in messages:
+            if message.startswith("[ERROR]"):
+                color_print(message[:len("[ERROR]")], 'red', file=sys.stderr, end="")
+                sys.stderr.write(message[len("[ERROR]"):])
+                sys.stderr.write("\n")
+            elif message.startswith("[WARNING]"):
+                color_print(message[:len("[WARNING]")], 'yellow', file=sys.stderr, end="")
+                sys.stderr.write(message[len("[WARNING]"):])
+                sys.stderr.write("\n")
+            else:
+                sys.stderr.write(message)
+                sys.stderr.write("\n")
+        sys.stderr.flush()
     return n_messages
