@@ -276,7 +276,8 @@ def _format_rotator_mode(value):
     
 FRONT_KEYWORDS = {
     r'.*mag' : lambda value : "{:.2f}".format(float(value)),
-    r'pm(ra|dec)': lambda value : "{:.5f}".format(u.Quantity(value, u.second / u.year).value),
+    r'pmdec': lambda value : "{:.5f}".format(u.Quantity(value, u.arcsec / u.year).value),
+    r'pmra' : lambda value : "{:.5f}".format(u.Quantity(value, u.hourangle / 3600 / u.year).value),
     r'dra': lambda value : "{:.4}".format((u.Quantity(value, u.arcsec/u.hr) / 15).value),
     r'ddec': lambda value : "{:.3}".format(u.Quantity(value, u.arcsec/u.hr).value),
     r'rotdest': lambda value : "{:.2f}".format(u.Quantity(value, u.degree).value),
