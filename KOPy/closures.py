@@ -36,7 +36,7 @@ from .starlist import read_skip_comments
 __all__ = ['Region', 'Closure', 'Opening', 'Regions']
 
 class Region(Target):
-    """Region for LCH Closures"""
+    """Region for LCH Closures."""
     
     RADIUS = 2 * u.arcmin
     """Radius around this region covered by the closure."""
@@ -196,114 +196,14 @@ class Opening(Window):
         return cls.from_openings_data(region, data)
     
 
-
-class Regions(collections.OrderedDict):
-    """A dictionary interface for LCH regions.
-    
-    The dictionary keys are the region names, taken from the starlist formatted lines.
-    The dictionary values are instances of :class:`Region`.
-    
-    """
-    def __init__(self, *args, **kwargs):
-        super(Regions, self).__init__(*args, **kwargs)
-    
-    def __repr__(self):
-        """Represent this summary group."""
-        repr_str = ["<{0:s}".format(self.__class__.__name__)]
-        repr_str += ["N={0:d}".format(self.n_objects)]
-        repr_str += ["({0:d} for {0:.0f})".format(self.n_closures, self.t_closures)]
-        return " ".join(repr_str) + ">"
-        
-    def contains(self, location):
-        """Check if this location is covered by any of the regions here."""
-        return any(region.contains(location) for region in self.values())
-        
-    def open(self, location, time):
-        """Check if this location and time is open for laser propagation.
-        
-        This method uses a conservative algorithm. Locations which are not
-        contained in any LCH region are declared closed. Locations which are
-        not declared open in all LCH regions where they fall are also declared
-        closed. LCH region size is set by the :attr:`Region.RADIUS` attribute,
-        and defaults to the 2 arcminute size which is standard at Keck.
-        
-        Parameters
-        ----------
-        location : :class:`~astropy.coordinates.SkyCoord`
-            The location to check against all of the contained regions.
-        time : :class:`~astropy.time.Time`
-            The time to check against all contained regions.
-        
-        Returns
-        -------
-        open : bool
-            Whether this location, at the specified time, is open for laser
-            propogation.
-        
-        """
-        contained = False
-        open = True
-        for region in self.values():
-            this_contain = region.contains(location)
-            contained |= this_contain
-            if this_contain:
-                this_open = region.open(time)
-                if not this_open:
-                    return False
-                open &= this_open
-        return (contained and open)
-        
-    def closed(self, location, time):
-        """Check if this location and time is closed."""
-        return not self.open(location, time)
-        
-    def to_starlist(self, filename):
-        """Write to a starlist."""
-        if isinstance(filename, io.IOBase) or hasattr(filename, 'write'):
-            stream = filename
-            self._to_starlist_stream(stream)
-        else:
-            with open(filename, mode) as stream:
-                self._to_starlist_stream(stream)
-        
-    def _to_starlist_stream(self, file):
-        """Create a full starlist."""
-        for t in self.values():
-            file.write(t.to_starlist())
-            file.write("\n")
-        
-    @property
-    def n_objects(self):
-        """Number of regions held by this summary block."""
-        return len(self)
-        
-    @property
-    def n_closures(self):
-        """Number of closures held by this summary block."""
-        return sum([ len(region.openings) - 1 for region in self.values() ])
-        
-    @property
-    def t_closures(self):
-        """Total duration of closures held by this summary block."""
-        return sum([ sum([ closure.duration.to('s').value for closure in region.closures ]) for region in self.values() ]) * u.second
-        
-    @classmethod
-    def parse(cls, filename, date=None):
-        """Parse a file or stream into regions"""
-        date = Time.now() if date is None else date
-        with get_readable_fileobj(filename) as stream:
-            parser = _LCHParser(stream.name, date, regioncls=cls)
-            return parser(stream)
-        
-
 class _LCHParser(object):
     """Closure Parsing State"""
     
-    def __init__(self, name, date=None, regioncls=Regions):
+    def __init__(self, name, date=None, regioncls=None):
         super(_LCHParser, self).__init__()
         self._name = name
         self._date = Time(date)
-        self._regioncls = regioncls
+        self._regioncls = regioncls if regioncls is not None else Regions
         self.reset()
         
     @property
@@ -405,10 +305,6 @@ class _LCHParser(object):
 class _LCHParserLick(_LCHParser):
     """Parser for Lick-style .lsm files."""
     
-    def __init__(self, name, date=None, quiet=True):
-        super(_LCHParserLick, self).__init__(name, date)
-        self._quiet = quiet
-    
     def load_starlist(self, filename):
         """Load individual starlists."""
         for line in read_skip_comments(filename):
@@ -420,8 +316,7 @@ class _LCHParserLick(_LCHParser):
         region_name = os.path.splitext(os.path.basename(filename))[0]
         self._this_line = 'lsm file'
         if region_name not in self._regions:
-            if not self._quiet:
-                self._warn("Skipping region '{}', not found in starlist.".format(region_name))
+            self._warn("Skipping region '{}', not found in starlist.".format(region_name))
             return
         self._current_region = self._regions[region_name]
         with open(filename, 'r') as stream:
@@ -438,7 +333,7 @@ class _LCHParserLick(_LCHParser):
             return glob.iglob(files)
         return iter(files)
     
-    def __call__(self, starlist, files):
+    def __call__(self, starlist, files=None):
         """Parse a stream line."""
         self.reset()
         self.load_starlist(starlist)
@@ -567,7 +462,135 @@ def parse_closures_list(stream, name="<stream>", date=None, cls=_LCHParser):
     """Parse a closure list"""
     parser = cls(name, date)
     return parser(stream).values()
+
+class Regions(collections.OrderedDict):
+    """A dictionary interface for LCH regions.
+    
+    The dictionary keys are the region names, taken from the starlist formatted lines.
+    The dictionary values are instances of :class:`Region`. Use the :meth:`Regions.parse`
+    method to parse a closure file into region objects.
+    
+    """
+    def __init__(self, *args, **kwargs):
+        super(Regions, self).__init__(*args, **kwargs)
+    
+    def __repr__(self):
+        """Represent this summary group."""
+        repr_str = ["<{0:s}".format(self.__class__.__name__)]
+        repr_str += ["N={0:d}".format(self.n_objects)]
+        repr_str += ["({0:d} for {0:.0f})".format(self.n_closures, self.t_closures)]
+        return " ".join(repr_str) + ">"
+        
+    def contains(self, location):
+        """Check if this location is covered by any of the regions here."""
+        return any(region.contains(location) for region in self.values())
+        
+    def open(self, location, time):
+        """Check if this location and time is open for laser propagation.
+        
+        This method uses a conservative algorithm. Locations which are not
+        contained in any LCH region are declared closed. Locations which are
+        not declared open in all LCH regions where they fall are also declared
+        closed. LCH region size is set by the :attr:`Region.RADIUS` attribute,
+        and defaults to the 2 arcminute size which is standard at Keck.
+        
+        Parameters
+        ----------
+        location : :class:`~astropy.coordinates.SkyCoord`
+            The location to check against all of the contained regions.
+        time : :class:`~astropy.time.Time`
+            The time to check against all contained regions.
+        
+        Returns
+        -------
+        open : bool
+            Whether this location, at the specified time, is open for laser
+            propogation.
+        
+        """
+        contained = False
+        open = True
+        for region in self.values():
+            this_contain = region.contains(location)
+            contained |= this_contain
+            if this_contain:
+                this_open = region.open(time)
+                if not this_open:
+                    return False
+                open &= this_open
+        return (contained and open)
+        
+    def closed(self, location, time):
+        """Check if this location and time is closed. Returns the opposite of :meth:`Regions.open`"""
+        return not self.open(location, time)
+        
+    def to_starlist(self, filename, **kwargs):
+        """Write these regions to a starlist file.
+        
+        Parameters
+        ----------
+        filename : str or fileobj
+            Filename for writing
+        
+        """
+        if isinstance(filename, io.IOBase) or hasattr(filename, 'write'):
+            stream = filename
+            self._to_starlist_stream(stream, **kwargs)
+        else:
+            with open(filename, mode) as stream:
+                self._to_starlist_stream(stream, **kwargs)
+        
+    def _to_starlist_stream(self, file, **kwargs):
+        """Create a full starlist."""
+        for t in self.values():
+            file.write(t.to_starlist(**kwargs))
+            file.write("\n")
+        
+    @property
+    def n_objects(self):
+        """Number of regions."""
+        return len(self)
+        
+    @property
+    def n_closures(self):
+        """Number of closures in all regions."""
+        return sum([ len(region.openings) - 1 for region in self.values() ])
+        
+    @property
+    def t_closures(self):
+        """Total duration of closures in all regions."""
+        return sum([ sum([ closure.duration.to('s').value for closure in region.closures ]) for region in self.values() ]) * u.second
+        
+    @classmethod
+    def parse(cls, filename, date=None, _parser=_LCHParser, **kwargs):
+        """Parse a closure file or stream into regions.
+        
+        Closure files contain starlists lines followed by listings
+        of opening blocks when laser propogation is permitted. This
+        object parses these into individual :class:`Region` objects
+        which contain a list of :class:`Opening` periods.
+        
+        Parameters
+        ----------
+        filename : str or fileobj
+            Filename or readable file object for the parser.
+        date : :class:`~astropy.time.Time`
+            String, or Time value which will be used to set the
+            date for the closure file.
             
+        
+        Returns
+        -------
+        regions : :class:`Regions`
+            The parsed regions.
+        
+        """
+        date = Time.now() if date is None else date
+        with get_readable_fileobj(filename) as stream:
+            parser = _parser(stream.name, date, regioncls=cls)
+            return parser(stream, **kwargs)
+        
+
 def upcoming_closures(regions, limit = 1 * u.hour, when = Time.now()):
     """Yield upcoming closures."""
     upcoming = []
