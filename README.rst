@@ -5,4 +5,3 @@ Keck Observing Python
     :target: http://www.astropy.org
     :alt: Powered by Astropy Badge
 
-Useful tools for observing with Keck.
