@@ -1,11 +1,36 @@
 import pytest
 
 import os
+import pickle
 
 from ..targets import Target, TargetList
 from astropy.tests.helper import assert_quantity_allclose
+from astropy.tests.helper import pickle_protocol
+
 from astropy.coordinates import SkyCoord
 from six.moves import StringIO
+
+def pickle_roundtrip(original, protocol):
+    """Round trip something via Pickle"""
+    f = pickle.dumps(original, protocol=protocol)
+    unpickled = pickle.loads(f)
+    return unpickled
+    
+def assert_coord_allclose(actual, desired, rtol=1.e-7, atol=None):
+    """Check that coordinates are allclose."""
+    actual = SkyCoord(actual)
+    desired = SkyCoord(desired)
+    assert_quantity_allclose(actual.ra, desired.ra, rtol=rtol, atol=atol)
+    assert_quantity_allclose(actual.dec, desired.dec, rtol=rtol, atol=atol)
+    assert_quantity_allclose(actual.distance, desired.distance, rtol=rtol, atol=atol)
+    
+def assert_target_allclose(actual, desired, rtol=1.e-7, atol=None):
+    """docstring for assert_target_allclose"""
+    assert actual.name == desired.name
+    for keyword in actual.keywords:
+        assert actual.keywords[keyword] == desired.keywords[keyword]
+        assert getattr(actual, keyword) == getattr(desired, keyword)
+    assert_coord_allclose(actual.position, desired.position)
 
 @pytest.fixture(scope='module')
 def targetlist():
@@ -16,7 +41,7 @@ def targetlist():
 @pytest.fixture
 def target():
     """A target option."""
-    return Target(name="MyTarget", position="1h4m3s +5d4m9s")
+    return Target(name="MyTarget", position="1h4m3s +5d4m9s", param="value")
 
 def test_read_starlist(starlist_filename):
     """Read a starlist filename."""
@@ -89,14 +114,6 @@ def test_starlist_names(target):
     tl = TargetList([target, target])
     assert tl.names == [target.name, target.name]
     
-def assert_coord_allclose(actual, desired, rtol=1.e-7, atol=None):
-    """Check that coordinates are allclose."""
-    actual = SkyCoord(actual)
-    desired = SkyCoord(desired)
-    assert_quantity_allclose(actual.ra, desired.ra, rtol=rtol, atol=atol)
-    assert_quantity_allclose(actual.dec, desired.dec, rtol=rtol, atol=atol)
-    assert_quantity_allclose(actual.distance, desired.distance, rtol=rtol, atol=atol)
-    
 def test_starlist_catalog(target):
     """Test starlist catalog"""
     tl = TargetList([target, target])
@@ -114,4 +131,7 @@ def test_targetlist_starlist_roundtrip(targetlist, tmpdir):
     tl = TargetList.from_starlist(str(tmpdir.join('starlist.txt')))
     assert tl.names == targetlist.names
     
-    
+def test_targetlist_pickle_roundtrip(target, pickle_protocol):
+    """Test for pickleing round-trip."""
+    unpickled = pickle_roundtrip(target, pickle_protocol)
+    assert_target_allclose(unpickled, target)
