@@ -77,16 +77,18 @@ class Target(object):
     
     """
     
-    __slots__ = ('name', 'position', 'keywords')
+    #TODO: Can't really use slots here. Does it matter?
+    # It breaks pickling and more :(
+    # __slots__ = ('name', 'position', 'keywords')
     
-    # name = None
-    # """Name of the target"""
-    #
-    # position = None
-    # """Position of the target, an :class:`~astropy.coordinates.SkyCoord` object."""
-    #
-    # keywords = {}
-    # """Keyword-value pairs from the starlist, as a dictionary."""
+    name = None
+    """Name of the target"""
+
+    position = None
+    """Position of the target, an :class:`~astropy.coordinates.SkyCoord` object."""
+
+    keywords = {}
+    """Keyword-value pairs from the starlist, as a dictionary."""
     
     def __init__(self, name, position, _keywords=dict(), **kwargs):
         super(Target, self).__init__()
@@ -99,9 +101,16 @@ class Target(object):
         
     def __getattr__(self, key):
         """Delegate attributes to keywords when necessary."""
-        if key in self.keywords:
+        if hasattr(self, 'keywords') and key in self.keywords:
             return self.keywords[key]
         raise AttributeError("'{:s}' has no attribute '{:s}'".format(self.__class__.__name__, key))
+        
+    def __setattr__(self, key, value):
+        """Set an attribute as a keyword."""
+        if not hasattr(self, key):
+            self.keywords[key] = value
+        else:
+            super(Target, self).__setattr__(key, value)
         
     def __repr__(self):
         """Represent a target."""
