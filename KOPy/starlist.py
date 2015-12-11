@@ -167,16 +167,20 @@ def parse_starlist_line(text):
     if data.get('Equinox','') == '':
         equinox = astropy.time.Time.now()
         frame = AltAz
+        unit = (u.degree, u.degree)
     elif data['Equinox'] == "APP":
         equinox = astropy.time.Time.now()
         frame = 'fk5'
+        unit = (u.hourangle, u.degree)
     else:
-        equinox = astropy.time.Time(float(data['Equinox']), format='jyear', scale='utc')
         if float(data['Equinox']) <= 1950:
             equinox = astropy.time.Time(float(data['Equinox']), format='byear', scale='utc')
             frame = 'fk4'
+            unit = (u.hourangle, u.degree)
         else:
+            equinox = astropy.time.Time(float(data['Equinox']), format='jyear', scale='utc')
             frame = 'fk5'
+            unit = (u.hourangle, u.degree)
     
     position = SkyCoord(data["RA"], data["Dec"], unit=(u.hourangle, u.degree), equinox=equinox, frame=frame)
     
