@@ -48,8 +48,8 @@ class Target(object):
     keywords : Key-value pairs
         Additional keywords can be passed to the constructor and will be used
         to populate the keyword dictionary. To preserve the order of keywords
-        passed to the constructor, pass an ordered dict or similar to the ``_keywords``
-        argument.
+        passed to the constructor, pass an ordered dict or similar to the
+        ``_keywords`` argument.
     
     Examples
     --------

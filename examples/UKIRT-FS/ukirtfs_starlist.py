@@ -16,17 +16,27 @@ VIZIER_ADS_REFERENCE = "2006MNRAS.373..781L"
 
 def row_to_target(row):
     """Make a target object out of a row from the Vizier UKIRT FS catalog."""
+    
+    # Get the position from Vizier. Use the Vizier normalized positions, which are in degrees J2000 (FK5).
     position = SkyCoord(row['_RAJ2000'] * u.deg, row['_DEJ2000'] * u.deg, frame='fk5')
+    
+    # Collect additional target keywords which might be useful from the Vizier catalog table.
     keywords = collections.OrderedDict()
     for filter in "JHK":
+        # Collect magnitudes and errors in magnitudes.
         keywords['{}mag'.format(filter)] = row["{}mag".format(filter)]
         keywords['e_{}mag'.format(filter)] = row["e_{}mag".format(filter)]
     if not getattr(row['pmRA'],'mask',False):
+        # Collect proper motions, if applicable.
         keywords['pmra'] = row['pmRA'] * u.mas / u.year
     if not getattr(row['pmDE'],'mask',False):
+        # Collect proper motions, if applicable.
         keywords['pmdec'] = row['pmDE'] * u.mas / u.year
     for key in ['SpType', 'Name']:
+        # Collect additional ASCII-formatted keys.
         keywords[key] = row[key].decode('ascii')
+        
+    # Build and return a target object.
     return Target(name=row['SimbadName'].decode('ascii'), position=position, _keywords=keywords)
 
 def main():
