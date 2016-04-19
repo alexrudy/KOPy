@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ddf version="1.0" type="target">
+  <dataset name="F10565+2448" setnum="0" aomode="LGS_FIXED" status="Modified">
+    <object>IRAS F10565+2448</object>
+    <spec filter="Kbb" scale="0.035&quot; / lenslet" itime="600" coadds="1" />
+    <imag mode="Slave 4: Filter Sets">
+      <imagFrame filter="Kbb" itime="60" coadds="2" repeats="2" />
+      <imagFrame filter="Hbb" itime="60" coadds="2" repeats="2" />
+    </imag>
+    <objectDither type="Raster Scan" frames1="2" frames2="1" param1="0.2" param2="0.0" xOffset="-0.1" yOffset="0.0" />
+    <skyDither type="Stare" frames1="1" frames2="1" param1="0.0" param2="0.0" nodXOffset="15.0" nodYOffset="-15.0" />
+    <ditherPattern coords="instr" units="arcsec" skyPA="45.0">
+      <ditherPosition sky="false" xOff="-0.1" yOff="0.0" />
+      <ditherPosition sky="true" xOff="14.9" yOff="15.0" />
+      <ditherPosition sky="false" xOff="0.1" yOff="0.0" />
+    </ditherPattern>
+    <reduction>
+      <reductionParameter name="Spatially Rectify Spectrum" instrument="spec" doStep="true" fileChoice="Use instrument default" />
+      <reductionParameter name="Divide by Flat Field" instrument="spec" doStep="true" fileChoice="Use instrument default" />
+      <reductionParameter name="Interpolate 1D" instrument="spec" doStep="true" fileChoice="Use instrument default" />
+      <reductionParameter name="Wavelength Solution" instrument="spec" doStep="true" fileChoice="Use instrument default" />
+      <reductionParameter name="Interpolate 3D" instrument="spec" doStep="true" fileChoice="Not Applicable" />
+      <reductionParameter name="Subtract Sky" instrument="spec" doStep="true" fileChoice="Use instrument default" />
+      <reductionParameter name="Make Data Cube" instrument="spec" doStep="true" fileChoice="Not Applicable" />
+      <reductionParameter name="Correct Dispersion" instrument="spec" doStep="true" fileChoice="Use instrument default" />
+      <reductionParameter name="Correct Telluric Lines" instrument="spec" doStep="true" fileChoice="Use instrument default" />
+      <reductionParameter name="Correct OH Lines" instrument="spec" doStep="true" fileChoice="Not Applicable" />
+      <reductionParameter name="Calibrate Flux" instrument="spec" doStep="true" fileChoice="Not Applicable" />
+      <reductionParameter name="Clean PSF" instrument="spec" doStep="true" fileChoice="Use instrument default" />
+      <reductionParameter name="Mosaic Dithered Frames" instrument="spec" doStep="true" fileChoice="Not Applicable" />
+    </reduction>
+  </dataset>
+</ddf>
+
