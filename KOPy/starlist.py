@@ -160,6 +160,7 @@ def parse_starlist_line(text):
         An ordered dictionary of keyword values applied to the starlist line.
     
     """
+    text = text.expandtabs()
     match = _starlist_re.match(text)
     if not match:
         raise ValueError("Couldn't parse '{}', no regular expression match found.".format(text))
@@ -200,7 +201,7 @@ def parse_starlist_line(text):
                     pass
         else:
             results[keyword] = value.strip().replace("=","")
-    return data['Name'].strip(), position, results
+    return data['Name'].rstrip(), position, results
     
 def read_skip_comments(filename, comments="#"):
     """Read a filename, yielding lines that don't start with comments.
@@ -353,7 +354,7 @@ def format_keywords(keywords):
     
 def format_starlist_line(name, position, keywords, remove_spaces=False):
     """Output the starlist."""
-    name = six.text_type(name).strip()
+    name = six.text_type(name)
     if remove_spaces:
         name = name.replace(" ","_")
     line = "{name:<15.15s} {position:s} {keywords:s}".format(

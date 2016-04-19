@@ -1,6 +1,7 @@
 import pytest
 from .. import starlist
 import astropy.units as u
+from astropy.coordinates import Angle
 import numpy as np
 from astropy.tests.helper import assert_quantity_allclose
 
@@ -15,6 +16,15 @@ def test_starlist_verify_line(starlist_line):
     """Check verification"""
     m = starlist.verify_starlist_line(starlist_line)
     assert not len(m)
+    
+def test_starlist_leading_whitespace():
+    """Test starlist with leading whitespace."""
+    starlist_line = "        tt020    09 00 20.4470  39 04 03.660 2000 b-r=0.9 b-v=0.5 rmag=13.66 sep=58.40 pa=265"
+    name, pos, keywords = starlist.parse_starlist_line(starlist_line)
+    assert name.strip() == "tt020"
+    assert name == "        tt020"
+    np.testing.assert_allclose(pos.ra.radian, Angle("09 00 20.4470", unit=u.hourangle).radian)
+    np.testing.assert_allclose(pos.dec.radian, Angle("39 04 03.660", unit=u.degree).radian)
     
 def test_starlist_read_from_fn(starlist_filename):
     """Test reading a starlist from a filename"""

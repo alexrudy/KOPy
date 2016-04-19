@@ -6,7 +6,7 @@ import pickle
 from ..targets import Target, TargetList
 from astropy.tests.helper import assert_quantity_allclose
 from astropy.tests.helper import pickle_protocol
-
+import astropy.units as u
 from astropy.coordinates import SkyCoord
 from six.moves import StringIO
 
@@ -50,7 +50,7 @@ def test_read_starlist(starlist_filename):
     
 def test_index_starlist(targetlist):
     """Test indexing into a starlist."""
-    assert len(targetlist) == 13
+    assert len(targetlist) == 15
     
     s = targetlist[1:3]
     assert len(s) == 2
@@ -118,6 +118,15 @@ def test_starlist_catalog(target):
     """Test starlist catalog"""
     tl = TargetList([target, target])
     assert_coord_allclose(tl.catalog(), SkyCoord([target.position, target.position]))
+    
+def test_starlist_leading_whitespace(tricky_tt):
+    """Test starlist with leading whitespace."""
+    starlist_line, pos = tricky_tt
+    t = Target.from_starlist(starlist_line)
+    assert t.name.strip() == "tt020"
+    assert t.name == "        tt020"
+    assert_coord_allclose(t.position, pos)
+    assert t.to_starlist().startswith("        tt020")
     
 @pytest.mark.xfail
 def test_targetlist_table_roundtrip(targetlist):

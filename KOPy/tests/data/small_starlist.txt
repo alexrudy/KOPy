@@ -23,3 +23,6 @@ Herschel101     12 34 56.78 +01 23 45.67 2000.0 rotdest=0.0 rotmode=vertical
 198xq_S2        13 55 48.26  -25 22 10.6  2000.0 raoffset=-33.61 decoffset=-112.72  # 33.61" W, 112.72" S to 198xq
 198xq_S3        13 55 39.96  -25 21 50.1  2000.0 raoffset=78.83  decoffset=-133.21  # 78.83" E, 133.21" S to 198xq
 
+# AMM targets with odd TT Names
+IRASF08572+3915  09 00 25.3950  39 03 54.190 2000.0 lgs=1
+        tt020    09 00 20.4470  39 04 03.660 2000 b-r=0.9 b-v=0.5 rmag=13.66 sep=58.40 pa=265
