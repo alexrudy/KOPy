@@ -215,6 +215,10 @@ class TargetList(collections.MutableSequence):
         
     def __add__(self, item):
         """Add two TargetList objects together."""
+        if isinstance(item, self.__class__):
+            new = self.__class__(self.__data)
+            new.extend(item)
+            return new
         return self.__class__(self.__data.__add__(item))
         
     def __mul__(self, value):
