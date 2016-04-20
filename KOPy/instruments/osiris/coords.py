@@ -96,7 +96,6 @@ def icrs_to_osiris(icrs_coord, osiris_frame):
     xyz = icrs_coord.cartesian.xyz
     orig_shape = xyz.shape
     xyz = R.dot(xyz.reshape(xyz.shape[0], np.prod(xyz.shape[1:]))).reshape(orig_shape)
-    # xyz[1] *= -1
     representation = CartesianRepresentation(xyz)
     return osiris_frame.realize_frame(representation)
     
@@ -116,7 +115,6 @@ def osiris_to_icrs(osiris_coord, icrs_frame):
     
     Rinv = np.linalg.inv(R)
     xyz = osiris_coord.cartesian.xyz
-    # xyz[1] *= -1
     orig_shape = xyz.shape
     xyz = Rinv.dot(xyz.reshape(xyz.shape[0], np.prod(xyz.shape[1:]))).reshape(orig_shape)
     
