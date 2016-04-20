@@ -111,7 +111,7 @@ def ddf_open_ds9(target, filename, imdir="."):
     print(" ".join(ds9args))
     subprocess.Popen(ds9args)
 
-def main():
+def main(args=None):
     """Main function for DDF manipulation."""
     parser = argparse.ArgumentParser(description="Produce a simple region file for help making OSIRIS DDFs")
     parser.add_argument('starlist', help='Starlist filename', type=six.text_type)
@@ -122,7 +122,7 @@ def main():
     parser.add_argument('--ds9', help='Open with DS9', action='store_true')
     parser.add_argument('--imdir', help='Image directory', type=six.text_type, default=os.path.relpath(os.getcwd()))
     
-    opt = parser.parse_args()
+    opt = parser.parse_args(args)
     
     from .ddf import DataDefinitionFile
     from ...targets import TargetList
