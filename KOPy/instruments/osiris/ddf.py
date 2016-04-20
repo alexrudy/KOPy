@@ -7,6 +7,7 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 
 from .coords import OsirisInstrumentFrame
+from ..coords import AstrometricFrame
 
 class SpectrographParameters(object):
     """Spectrograph parameters"""
@@ -67,10 +68,11 @@ class DitherPosition(object):
 
 class DitherPattern(object):
     """A collection of dither positions."""
-    def __init__(self, frame, positions):
+    def __init__(self, frame, positions, position_angle):
         super(DitherPattern, self).__init__()
         self.frame = frame
         self.positions = positions
+        self.position_angle = position_angle
         
     @property
     def imager(self):
@@ -88,14 +90,17 @@ class DitherPattern(object):
         coords = xml.get('coords')
         position_angle = float(xml.get('skyPA')) * u.degree
         units = u.Unit(xml.get('units'))
-        frame = OsirisInstrumentFrame(pointing_origin="spec", instrument_position_angle=position_angle)
+        if coords == "sky":
+            frame = AstrometricFrame()
+        else:
+            frame = OsirisInstrumentFrame(pointing_origin="spec", rotation=position_angle)
         positions = []
         for position in xml.findall('ditherPosition'):
             X = float(position.get('xOff')) * units
             Y = float(position.get('yOff')) * units
             sky = position.get('sky') == 'true'
             positions.append(DitherPosition(SkyCoord(X=X, Y=Y, frame=frame), sky=sky))
-        return cls(frame, positions)
+        return cls(frame, positions, position_angle)
 
 class DatasetParameters(object):
     """Dataset parameters"""

@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
 """OSIRIS custom regions."""
+import os
+import argparse
+import six
+import glob
+import subprocess
 
 import astropy.units as u
 from astropy.coordinates import SkyCoord, BaseCoordinateFrame, ICRS
@@ -16,8 +21,8 @@ def get_instrument_position_angle(coord):
     else:
         raise TypeError("Must pass a coordinate frame.")
         
-    if 'instrument_position_angle' in frame.get_frame_attr_names():
-        return coord.instrument_position_angle
+    if 'rotation' in frame.get_frame_attr_names():
+        return coord.rotation
     else:
         return 0 * u.degree
 
@@ -39,6 +44,7 @@ def get_spec_FOV(filter, scale):
         (w, h) = (16, 64)
     else:
         raise ValueError("I haven't comptued these scales yet...")
+    scale = scale.to(u.arcsec/u.pix).value * u.arcsec
     return (w * scale, h * scale)
 
 class SpecFOV(Box):
@@ -48,14 +54,14 @@ class SpecFOV(Box):
         width, height = get_spec_FOV(filter, scale)
         position_angle = get_instrument_position_angle(position)
         super(SpecFOV, self).__init__(position, position_angle=position_angle,
-            width=0.56 * u.arcsec, height=2.24*u.arcsec, **kwargs)
+            width=width, height=height, **kwargs)
             
         
     
 
 def create_region_from_DDF(ddf, target, guidestar=None):
     """Create and return a region file from a DDF."""
-    target_frame = ddf.dataset.dithers.frame.at_origin(target)
+    target_frame = OsirisInstrumentFrame(origin=target, rotation=ddf.dataset.dithers.position_angle)
     imager_frame = target_frame.at_origin(target_frame.imager)
     spec_frame   = target_frame.at_origin(target_frame.spectrograph)
     
@@ -75,10 +81,79 @@ def create_region_from_DDF(ddf, target, guidestar=None):
             scale=ddf.dataset.spec.scale, text="Spec {:d}".format(i+1), color=color))
     
     size = 60 * u.arcsec if ddf.dataset.laser else 30 * u.arcsec
-    position_angle = target_frame.instrument_position_angle
+    position_angle = target_frame.rotation
     if target_frame.pointing_origin == "spec":
         position_angle += 45 * u.deg
     regions.append(Box(target, size*2, size*2, position_angle = position_angle, color="white"))
     
     return regions
+    
+
+def ddf_open_ds9(target, filename, imdir="."):
+    """Assemble the arguments to open DS9"""
+    ds9args = ["ds9", '-view', 'layout', 'vertical']
+    impath = os.path.join(os.path.abspath(imdir),"{}*.fits".format(target.name))
+    images = glob.glob(impath)
+    if not len(images):
+        raise IOError("No images found in '{}'".format(impath))
+    for idx, image in enumerate(images):
+        if idx:
+            ds9args += ['-frame', 'new']
+        ds9args += [image, '-cmap', 'hsv', '-scale', 'log', '-bg', 'black']
+    ds9args += ["-regions", "load", 'all', filename ]
+    ds9args += ["-pan", "to",
+        "{:s}".format(target.position.ra.to_string(u.hourangle, sep=":", pad=False)), 
+        "{:s}".format(target.position.dec.to_string(u.degree, sep=":", pad=False)), "wcs", "fk5"]
+    ds9args += ['-frame', 'match', 'wcs']
+    ds9args += ['-frame', 'lock', 'wcs']
+    ds9args += ['-frame', six.text_type(idx+1)]
+    ds9args += ['-geometry', '1300x1100']
+    print(" ".join(ds9args))
+    subprocess.Popen(ds9args)
+
+def main():
+    """Main function for DDF manipulation."""
+    parser = argparse.ArgumentParser(description="Produce a simple region file for help making OSIRIS DDFs")
+    parser.add_argument('starlist', help='Starlist filename', type=six.text_type)
+    parser.add_argument('ddf', help='DDF filename', type=six.text_type)
+    parser.add_argument('target', help='Target name', type=six.text_type, nargs="?")
+    
+    parser.add_argument('--output', help='Output region name', type=argparse.FileType('w'))
+    parser.add_argument('--ds9', help='Open with DS9', action='store_true')
+    parser.add_argument('--imdir', help='Image directory', type=six.text_type, default=os.path.relpath(os.getcwd()))
+    
+    opt = parser.parse_args()
+    
+    from .ddf import DataDefinitionFile
+    from ...targets import TargetList
+    
+    print("Parsing DDF '{}'".format(opt.ddf))
+    ddf = DataDefinitionFile.from_file(opt.ddf)
+    if opt.target is None:
+        opt.target = ddf.dataset.name
+    
+    print("Parsing starlist '{}'".format(opt.starlist))
+    targets = TargetList.from_starlist(opt.starlist)
+    
+    target = targets[opt.target]
+    guidestar = targets[targets.index(target) + 1]
+    if guidestar.position.separation(target.position) > 80 * u.arcsec:
+        guidestar = None
+    
+    print("Creating region file.")
+    regions = create_region_from_DDF(ddf, target.position, guidestar.position)
+    
+    if opt.output is None: 
+        opt.output = open("{}-auto.reg".format(target.name), 'w')
+    print("Saving region file to '{}'".format(opt.output.name))
+    opt.output.write("\n".join(regions()))
+    opt.output.flush()
+    opt.output.close()
+    
+    if opt.ds9:
+        print("Opening images in DS9 from {}".format(opt.imdir))
+        try:
+            ddf_open_ds9(target, opt.output.name, opt.imdir)
+        except IOError as e:
+            parser.error(e)
     
